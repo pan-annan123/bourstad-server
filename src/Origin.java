@@ -75,7 +75,7 @@ public class Origin extends HttpServlet {
 	 * @see HttpServlet#doPost(HttpServletRequest request, HttpServletResponse response)
 	 */
 	protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
-		Cache<HashMap<String, Entity>> usercache = new Cache<>(new File("/tmp/bourstad"), "data");
+//		Cache<HashMap<String, Entity>> usercache = new Cache<>(new File("/tmp/bourstad"), "data");
 
 		long time = System.currentTimeMillis();
 		if (time - lastUpdate > UPDATE_INTERVAL) {
@@ -84,15 +84,15 @@ public class Origin extends HttpServlet {
 					user.update();
 				});
 				lastUpdate = time;
-				usercache.saveCache(users);
+//				usercache.saveCache(users);
 			});
 			t.start();
 		}
 
 		if (!active) {
-			if (usercache.exists()) {
-				users = usercache.loadCache();
-			}
+//			if (usercache.exists()) {
+//				users = usercache.loadCache();
+//			}
 			active = true;
 			new Thread(() -> {
 				while (active) {
@@ -105,7 +105,7 @@ public class Origin extends HttpServlet {
 					} catch (InterruptedException e) {}
 					System.out.println("Executing transactions..");
 					users.values().stream().parallel().forEach(user -> user.executePendingTransactions());
-					usercache.saveCache(users);
+//					usercache.saveCache(users);
 				}
 			}).start();
 		}
@@ -192,7 +192,7 @@ public class Origin extends HttpServlet {
 			end(response);
 		}
 		response.getWriter().append(Util.getStringFromParams(echo));
-		usercache.saveCache(users);
+//		usercache.saveCache(users);
 	}
 
 	private void end(HttpServletResponse response) throws IOException {
