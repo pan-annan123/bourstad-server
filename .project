@@ -34,11 +34,4 @@
 		<nature>org.eclipse.jdt.core.javanature</nature>
 		<nature>org.eclipse.wst.jsdt.core.jsNature</nature>
 	</natures>
-	<linkedResources>
-		<link>
-			<name>WebContent/WEB-INF/lib/jsoup-1.9.2.jar</name>
-			<type>1</type>
-			<locationURI>PARENT-2-PROJECT_LOC/Desktop/Computer%20Science/Libraries/jsoup-1.9.2.jar</locationURI>
-		</link>
-	</linkedResources>
 </projectDescription>
