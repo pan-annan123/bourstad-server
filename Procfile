@@ -1,1 +1,1 @@
-web:    java -jar target/dependency/webapp-runner.jar --port 8080 target/*.war
+web:    java -Xms768m -Xmx768m -Xmn192m -jar target/dependency/webapp-runner.jar --port 8080 target/*.war
