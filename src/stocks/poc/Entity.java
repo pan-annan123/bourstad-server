@@ -2,6 +2,7 @@ package stocks.poc;
 
 import java.io.Serializable;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -23,6 +24,7 @@ public class Entity implements Serializable {
 	public static final int ACTION_INSUFFICIENT_FUNDS = 2;
 	public static final int ACTION_INVALID_MULTIPLE = 3;
 	public static final int ACTION_LIMIT_SHORT = 4;
+	public static final int ACTION_ILLEGAL_AMOUNT = 5;
 	
 	public Entity(String username) {
 		this.username = username;
@@ -32,16 +34,23 @@ public class Entity implements Serializable {
 		value = 200000.0;
 		cash = 200000.0;
 		transactions = new ArrayList<>();
+		log("Created new entity");
+	}
+	
+	private void log(String message) {
+		System.out.printf("[%s] %20s | %s\n", LocalDateTime.now(), username, message);
 	}
 	
 	public void addTransaction(Transaction transaction) {
 		transactions.add(transaction);
+		log("Added transaction: "+transaction.toString());
 	}
 	
 	public void executePendingTransactions() {
 		transactions.forEach(trans -> {
 			if (trans.getStatus() >= 0) return;
 			if (trans.getDateTime().isAfter(LocalDate.now().atTime(LocalTime.of(16, 30)))) return;
+			log("Executing "+trans.toString());
 			int code;
 			if (trans.isBuy()) {
 				code = actionBuyStock(trans.getTicker(), trans.getAmount());
@@ -50,6 +59,7 @@ public class Entity implements Serializable {
 			}
 			trans.setStatus(code);
 		});
+		update();
 	}
 	
 	public int actionBuyStock(String ticker, int amount) {
@@ -57,9 +67,11 @@ public class Entity implements Serializable {
 			return ACTION_INVALID_STOCK;
 		}
 		if (amount % 100 != 0) return ACTION_INVALID_MULTIPLE;
+		if (amount <= 0) return ACTION_ILLEGAL_AMOUNT;
 		
 		//MONEY NEEDED
 		double price = Util.getPrice(ticker);
+		log("Price: "+price);
 		
 		// brokerage fees
 		double fees;
@@ -72,7 +84,7 @@ public class Entity implements Serializable {
 		else {
 			fees = 15.0 + 5.0 * (double)amount/100.0;
 		}
-		fees = Math.max(fees, 250.0);
+		fees = Math.min(fees, 250.0);
 		
 		double need = price * (double)amount + fees;
 		
@@ -103,9 +115,11 @@ public class Entity implements Serializable {
 			return ACTION_INVALID_STOCK;
 		}
 		if (amount % 100 != 0) return ACTION_INVALID_MULTIPLE;
+		if (amount <= 0) return ACTION_ILLEGAL_AMOUNT;
 		
 		//MONEY NEEDED
 		double price = Util.getPrice(ticker);
+		log("Price: "+price);
 		
 		// brokerage fees
 		double fees;
@@ -118,7 +132,7 @@ public class Entity implements Serializable {
 		else {
 			fees = 15.0 + 5.0 * (double)amount/100.0;
 		}
-		fees = Math.max(fees, 250.0);
+		fees = Math.min(fees, 250.0);
 		
 		double value = price * (double) amount;
 		double gains = value - fees;
@@ -128,8 +142,8 @@ public class Entity implements Serializable {
 				.mapToDouble(stock -> stocks.get(stock) < 0 ? Util.getPrice(stock) * stocks.get(stock) : 0)
 				.sum();
 		update();
-		//TODO: REMOVE FUNCTION UPDATE after pending transactions implementation
-		boolean shortable = this.value - fees >= Math.abs(minus) + value;
+		double worth = this.value - stocks.get("CASH") + cash;
+		boolean shortable = worth - fees >= Math.abs(minus) + value;
 		
 		if (!shortable) {
 			return ACTION_LIMIT_SHORT;
@@ -149,7 +163,8 @@ public class Entity implements Serializable {
 	
 	public void update() {
 		value = stocks.keySet().stream().parallel().mapToDouble(ticker -> Util.getPrice(ticker) * stocks.get(ticker)).sum();
-		System.out.println("Value of "+username+" updated to "+value);
+		value = Math.round((value - stocks.get("CASH") + cash) * 100.0) / 100.0;
+		log("Value updated to "+value);
 	}
 	
 	public double getValue() {

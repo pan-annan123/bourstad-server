@@ -18,6 +18,7 @@ import javax.servlet.http.HttpServletResponse;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
+import pan.cache.loader.Cache;
 import stocks.poc.Entity;
 import stocks.poc.Transaction;
 import stocks.poc.Util;
@@ -64,6 +65,8 @@ public class Origin extends HttpServlet {
 			return "Refused: invalid multiple of 100";
 		case Entity.ACTION_LIMIT_SHORT:
 			return "Refused: limit exceeded for shorting";
+		case Entity.ACTION_ILLEGAL_AMOUNT:
+			return "Refused: tried to execute a transaction for an illegal amount";
 		default:
 			return "Transaction Error";
 		}
@@ -73,24 +76,13 @@ public class Origin extends HttpServlet {
 	 * @see HttpServlet#doPost(HttpServletRequest request, HttpServletResponse response)
 	 */
 	protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
-//		Cache<HashMap<String, Entity>> usercache = new Cache<>(new File("/tmp/bourstad"), "data");
+		Cache<HashMap<String, Entity>> usercache = new Cache<>(Cache.getFolderInHome("Bourstad Server"), "data");
 
-		long time = System.currentTimeMillis();
-		if (time - lastUpdate > UPDATE_INTERVAL) {
-			Thread t = new Thread(() -> {
-				users.values().stream().parallel().forEach(user -> {
-					user.update();
-				});
-				lastUpdate = time;
-//				usercache.saveCache(users);
-			});
-			t.start();
-		}
-
+		// EXECUTE TRANSACTIONS PERIODICALLY (start thread if first time)
 		if (!active) {
-//			if (usercache.exists()) {
-//				users = usercache.loadCache();
-//			}
+			if (usercache.exists()) {
+				users = usercache.loadCache();
+			}
 			active = true;
 			new Thread(() -> {
 				while (active) {
@@ -103,11 +95,25 @@ public class Origin extends HttpServlet {
 					} catch (InterruptedException e) {}
 					System.out.println("Executing transactions..");
 					users.values().stream().parallel().forEach(user -> user.executePendingTransactions());
-//					usercache.saveCache(users);
+					usercache.saveCache(users);
 				}
 			}).start();
 		}
 		
+		// UPDATE USERS PERIODICALLY
+		long time = System.currentTimeMillis();
+		if (time - lastUpdate > UPDATE_INTERVAL) {
+			System.out.println("Updating users..");
+			Thread t = new Thread(() -> {
+				users.values().stream().parallel().forEach(user -> {
+					user.update();
+				});
+				lastUpdate = time;
+			});
+			t.start();
+		}
+		
+		// PROCESS USER REQUEST
 		Map<String, String[]> params = request.getParameterMap();
 		if (!params.containsKey("action")) end(response);
 
@@ -190,7 +196,7 @@ public class Origin extends HttpServlet {
 			end(response);
 		}
 		response.getWriter().append(Util.getStringFromParams(echo));
-//		usercache.saveCache(users);
+		usercache.saveCache(users);
 	}
 
 	private void end(HttpServletResponse response) throws IOException {

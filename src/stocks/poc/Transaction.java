@@ -19,6 +19,11 @@ public class Transaction implements Serializable {
 		status = -1;
 		datetime = LocalDateTime.now();
 	}
+	
+	@Override
+	public String toString() {
+		return (buy?"BUY ":"SELL ") + amount + " " + ticker;
+	}
 
 	public boolean isBuy() {
 		return buy;
